@@ -43,10 +43,8 @@ export default async function handler(req) {
         const due = new Date(card.dueDate);
         // If due date is between now and 24 hours from now
         if (due > now && due <= next24h) {
-          // Send email
-          // We will push this to a promise array to send concurrently, or just await it here
           changed = true;
-          card.notified = true;
+          return { ...card, notified: true };
         }
         return card;
       });
