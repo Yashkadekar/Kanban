@@ -528,8 +528,8 @@
         </div>
       </div>
       <div class="form-group">
-        <label for="cardDueDate">Due Date (Optional)</label>
-        <input type="date" id="cardDueDate" style="background:var(--bg); border:1px solid var(--border); color:var(--fg); padding:10px; border-radius:var(--radius-sm); font-family:inherit; color-scheme:dark;">
+        <label for="cardDueDate">Due Date & Time (Optional)</label>
+        <input type="datetime-local" id="cardDueDate" style="background:var(--bg); border:1px solid var(--border); color:var(--fg); padding:10px; border-radius:var(--radius-sm); font-family:inherit; color-scheme:dark;">
       </div>
       <div class="form-group">
         <label>Tags (press Enter to add)</label>
@@ -951,7 +951,13 @@
     el.className = 'card'; el.draggable = true; el.dataset.id = card.id;
     const pl = { high: 'High', medium: 'Medium', low: 'Low' };
     const tags = (card.tags || []).map(t => `<span class="card-tag">${esc(t)}</span>`).join('');
-    const dueHtml = card.dueDate ? `<div class="card-due-date" title="Due ${card.dueDate}"><i class="fas fa-calendar-alt"></i>${card.dueDate}</div>` : '';
+    
+    let formattedDue = card.dueDate;
+    if (formattedDue && formattedDue.includes('T')) {
+      const d = new Date(formattedDue);
+      if (!isNaN(d)) formattedDue = d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+    const dueHtml = card.dueDate ? `<div class="card-due-date" title="Due ${card.dueDate}"><i class="fas fa-calendar-alt"></i>${formattedDue}</div>` : '';
     el.innerHTML = `
       <div class="card-top">
         <span class="card-priority priority-${card.priority}">${pl[card.priority]}</span>
