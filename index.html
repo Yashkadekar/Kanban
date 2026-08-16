@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanban Board</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --bg-elevated: #1a1a1a;
+    --card: #222222;
+    --card-hover: #2a2a2a;
+    --border: #333333;
+    --border-light: #444444;
+    --fg: #f0ece4;
+    --fg-muted: #8a8580;
+    --fg-dim: #5a5550;
+    --accent: #e8a030;
+    --accent-glow: rgba(232, 160, 48, 0.15);
+    --danger: #e05050;
+    --danger-glow: rgba(224, 80, 80, 0.15);
+    --success: #40c870;
+    --success-glow: rgba(64, 200, 112, 0.15);
+    --info: #50a0e0;
+    --info-glow: rgba(80, 160, 224, 0.15);
+    --warning: #e0a030;
+    --warning-glow: rgba(224, 160, 48, 0.15);
+    --col-todo: #e8a030;
+    --col-progress: #50a0e0;
+    --col-review: #c070e0;
+    --col-done: #40c870;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    overflow-x: auto;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -30%; left: -10%;
+    width: 60%; height: 60%;
+    background: radial-gradient(ellipse, rgba(232,160,48,0.04) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -20%; right: -10%;
+    width: 50%; height: 50%;
+    background: radial-gradient(ellipse, rgba(80,160,224,0.03) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(15,15,15,0.88);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+
+  .logo { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), #d08020);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: #000; font-weight: 700;
+  }
+  .logo h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  .logo h1 span { color: var(--accent); }
+
+  .header-center { display: flex; align-items: center; gap: 10px; }
+
+  .search-box { position: relative; }
+  .search-box i {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--fg-dim); font-size: 13px;
+  }
+  .search-box input {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 9px 14px 9px 36px;
+    color: var(--fg); font-family: inherit; font-size: 13px;
+    width: 200px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .search-box input::placeholder { color: var(--fg-dim); }
+  .search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+  .filter-btn {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 9px 14px;
+    color: var(--fg-muted); font-family: inherit; font-size: 13px;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .filter-btn:hover { border-color: var(--border-light); color: var(--fg); }
+  .filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  .sync-indicator {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--fg-dim);
+    font-family: 'JetBrains Mono', monospace;
+    padding: 6px 12px; border-radius: var(--radius);
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    white-space: nowrap; transition: all 0.3s;
+  }
+  .sync-indicator .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--fg-dim); transition: background 0.3s, box-shadow 0.3s;
+  }
+  .sync-indicator.synced .dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .sync-indicator.syncing .dot {
+    background: var(--accent); box-shadow: 0 0 6px var(--accent);
+    animation: pulse 0.8s ease-in-out infinite;
+  }
+  .sync-indicator.error .dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+  .sync-indicator.local-only { border-color: var(--warning); }
+  .sync-indicator.local-only .dot { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .btn-icon {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 9px 14px;
+    color: var(--fg-muted); font-family: inherit; font-size: 13px;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .btn-icon:hover { border-color: var(--info); color: var(--info); background: var(--info-glow); }
+
+  .btn-add-global {
+    background: linear-gradient(135deg, var(--accent), #d08020);
+    border: none; border-radius: var(--radius); padding: 9px 18px;
+    color: #000; font-family: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .btn-add-global:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(232,160,48,0.3); }
+  .btn-add-global:active { transform: translateY(0); }
+
+  .board {
+    display: flex; gap: 20px; padding: 28px 32px;
+    min-height: calc(100vh - 70px);
+    position: relative; z-index: 1; align-items: flex-start;
+  }
+
+  /* ===== Setup Screen ===== */
+  .setup-overlay {
+    position: fixed; inset: 0; background: var(--bg); z-index: 9999;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    transition: opacity 0.4s, visibility 0.4s;
+  }
+  .setup-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  .setup-card {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 16px; padding: 40px; max-width: 520px; width: 100%;
+    box-shadow: var(--shadow-lg);
+  }
+  .setup-card h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .setup-card h2 span { color: var(--accent); }
+  .setup-card .subtitle { color: var(--fg-muted); font-size: 14px; margin-bottom: 28px; line-height: 1.6; }
+  .setup-card .steps { margin-bottom: 28px; }
+  .setup-card .step {
+    display: flex; gap: 14px; margin-bottom: 16px;
+    padding: 14px; background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .setup-card .step-num {
+    width: 28px; height: 28px; flex-shrink: 0;
+    background: var(--accent-glow); border: 1px solid rgba(232,160,48,0.3);
+    color: var(--accent); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+  }
+  .setup-card .step-text { font-size: 13px; line-height: 1.6; color: var(--fg-muted); }
+  .setup-card .step-text strong { color: var(--fg); }
+  .setup-card .step-text code {
+    background: var(--bg); padding: 2px 6px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent);
+  }
+  .setup-card .step-text a { color: var(--info); text-decoration: none; }
+  .setup-card .step-text a:hover { text-decoration: underline; }
+  .setup-form { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+  .setup-form label {
+    font-size: 12px; font-weight: 500; color: var(--fg-muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .setup-form input {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 11px 14px;
+    color: var(--fg); font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .setup-form input::placeholder { color: var(--fg-dim); font-family: 'Space Grotesk', sans-serif; }
+  .setup-form input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .setup-form .hint { font-size: 11px; color: var(--fg-dim); margin-top: -8px; }
+  .setup-actions { display: flex; gap: 10px; }
+  .setup-actions .btn-skip {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 11px 20px;
+    color: var(--fg-muted); font-family: inherit; font-size: 13px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .setup-actions .btn-skip:hover { border-color: var(--border-light); color: var(--fg); }
+  .setup-actions .btn-connect {
+    background: linear-gradient(135deg, var(--accent), #d08020);
+    border: none; border-radius: var(--radius-sm); padding: 11px 24px;
+    color: #000; font-family: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; flex: 1;
+  }
+  .setup-actions .btn-connect:hover { box-shadow: 0 4px 16px rgba(232,160,48,0.3); transform: translateY(-1px); }
+  .setup-actions .btn-connect:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .setup-error { color: var(--danger); font-size: 12px; margin-top: -8px; display: none; }
+
+  /* Loading overlay */
+  .loading-overlay {
+    position: fixed; inset: 0; background: var(--bg); z-index: 9998;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    transition: opacity 0.4s, visibility 0.4s;
+  }
+  .loading-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  .loader-ring {
+    width: 48px; height: 48px;
+    border: 3px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay p { color: var(--fg-muted); font-size: 14px; }
+
+  /* Column */
+  .column {
+    flex: 0 0 320px; min-width: 320px;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 14px; display: flex; flex-direction: column;
+    max-height: calc(100vh - 110px); transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .column.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow), var(--shadow); }
+  .column-header {
+    padding: 18px 18px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .column-header-left { display: flex; align-items: center; gap: 10px; }
+  .column-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .column-title { font-size: 14px; font-weight: 600; letter-spacing: -0.3px; }
+  .column-count {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 2px 9px;
+    font-size: 11px; font-weight: 600; color: var(--fg-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .column-cards {
+    padding: 12px; overflow-y: auto; flex: 1;
+    display: flex; flex-direction: column; gap: 10px; min-height: 60px;
+  }
+  .column-cards::-webkit-scrollbar { width: 4px; }
+  .column-cards::-webkit-scrollbar-track { background: transparent; }
+  .column-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .drop-placeholder {
+    border: 2px dashed var(--border-light); border-radius: var(--radius);
+    min-height: 60px; background: var(--accent-glow); transition: all 0.2s; flex-shrink: 0;
+  }
+  .column-footer { padding: 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .btn-add-card {
+    width: 100%; background: none; border: 1px dashed var(--border);
+    border-radius: var(--radius); padding: 10px;
+    color: var(--fg-dim); font-family: inherit; font-size: 13px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.2s;
+  }
+  .btn-add-card:hover { border-color: var(--fg-dim); color: var(--fg-muted); background: rgba(255,255,255,0.02); }
+
+  /* Card */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px;
+    cursor: grab; transition: all 0.2s; position: relative;
+    animation: cardIn 0.3s ease-out;
+  }
+  @keyframes cardIn { from{opacity:0;transform:translateY(-8px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+  .card:hover { background: var(--card-hover); border-color: var(--border-light); box-shadow: var(--shadow); }
+  .card:active { cursor: grabbing; }
+  .card.dragging { opacity: 0.4; transform: scale(0.97); }
+  .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .card-priority { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 8px; border-radius: 4px; }
+  .priority-high { color: var(--danger); background: var(--danger-glow); }
+  .priority-medium { color: var(--warning); background: var(--warning-glow); }
+  .priority-low { color: var(--success); background: var(--success-glow); }
+  .card-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.2s; }
+  .card:hover .card-actions { opacity: 1; }
+  .card-action-btn {
+    background: none; border: none; color: var(--fg-dim);
+    cursor: pointer; padding: 3px 5px; border-radius: 4px;
+    font-size: 12px; transition: all 0.15s;
+  }
+  .card-action-btn:hover { color: var(--fg); background: rgba(255,255,255,0.06); }
+  .card-action-btn.delete:hover { color: var(--danger); background: var(--danger-glow); }
+  .card-title { font-size: 14px; font-weight: 500; line-height: 1.4; margin-bottom: 6px; word-break: break-word; }
+  .card-desc { font-size: 12px; color: var(--fg-muted); line-height: 1.5; margin-bottom: 10px; word-break: break-word; }
+  .card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .card-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+  .card-tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: rgba(255,255,255,0.06); color: var(--fg-muted); border: 1px solid var(--border); }
+  .card-date { font-size: 10px; color: var(--fg-dim); font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(8px); z-index: 1000;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.active { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 16px; width: 100%; max-width: 480px;
+    box-shadow: var(--shadow-lg); transform: scale(0.95) translateY(10px);
+    transition: transform 0.25s ease;
+  }
+  .modal-overlay.active .modal { transform: scale(1) translateY(0); }
+  .modal-header { padding: 20px 24px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+  .modal-header h2 { font-size: 16px; font-weight: 600; }
+  .modal-close { background: none; border: none; color: var(--fg-dim); cursor: pointer; padding: 4px; border-radius: 6px; font-size: 16px; transition: all 0.15s; }
+  .modal-close:hover { color: var(--fg); background: var(--card); }
+  .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 12px; font-weight: 500; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group input, .form-group textarea, .form-group select {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    color: var(--fg); font-family: inherit; font-size: 14px;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s; resize: vertical;
+  }
+  .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .form-group textarea { min-height: 80px; }
+  .form-group select option { background: var(--card); color: var(--fg); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tags-input-wrap {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 10px;
+    transition: border-color 0.2s, box-shadow 0.2s; min-height: 42px; align-items: center;
+  }
+  .tags-input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .tag-chip {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--accent-glow); border: 1px solid rgba(232,160,48,0.3);
+    color: var(--accent); font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 4px;
+  }
+  .tag-chip button { background: none; border: none; color: inherit; cursor: pointer; font-size: 12px; padding: 0; line-height: 1; opacity: 0.7; transition: opacity 0.15s; }
+  .tag-chip button:hover { opacity: 1; }
+  .tags-input { border: none; background: transparent; color: var(--fg); font-family: inherit; font-size: 13px; outline: none; flex: 1; min-width: 80px; }
+  .tags-input::placeholder { color: var(--fg-dim); }
+  .modal-footer { padding: 16px 24px 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); }
+  .btn-cancel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 18px; color: var(--fg-muted); font-family: inherit; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+  .btn-cancel:hover { border-color: var(--border-light); color: var(--fg); }
+  .btn-submit { background: linear-gradient(135deg, var(--accent), #d08020); border: none; border-radius: var(--radius-sm); padding: 9px 22px; color: #000; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-submit:hover { box-shadow: 0 4px 16px rgba(232,160,48,0.3); transform: translateY(-1px); }
+  .btn-submit:active { transform: translateY(0); }
+
+  /* Toast */
+  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 2000; display: flex; flex-direction: column-reverse; gap: 8px; }
+  .toast {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 18px;
+    font-size: 13px; color: var(--fg); box-shadow: var(--shadow-lg);
+    display: flex; align-items: center; gap: 8px;
+    animation: toastIn 0.3s ease-out; min-width: 240px;
+  }
+  .toast.removing { animation: toastOut 0.25s ease-in forwards; }
+  @keyframes toastIn { from{opacity:0;transform:translateY(12px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+  @keyframes toastOut { to{opacity:0;transform:translateY(12px) scale(0.95)} }
+  .toast i { font-size: 14px; }
+  .toast.success i { color: var(--success); }
+  .toast.error i { color: var(--danger); }
+  .toast.info i { color: var(--info); }
+  .column-empty { text-align: center; padding: 24px 16px; color: var(--fg-dim); font-size: 12px; }
+  .column-empty i { display: block; font-size: 24px; margin-bottom: 8px; opacity: 0.4; }
+
+  @media (max-width: 768px) {
+    header { padding: 12px 16px; }
+    .search-box input { width: 140px; }
+    .board { padding: 16px; gap: 14px; }
+    .column { flex: 0 0 280px; min-width: 280px; }
+    .sync-indicator .label-text { display: none; }
+    .btn-icon span { display: none; }
+    .setup-card { padding: 24px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Setup Screen -->
+<div class="setup-overlay" id="setupOverlay">
+  <div class="setup-card">
+    <h2>Connect to <span>Supabase</span></h2>
+    <p class="subtitle">
+      Your board data will be stored in a real PostgreSQL database — free, fast, and persistent.
+      This is a one-time setup. Your keys are saved in your browser only.
+    </p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          Go to <a href="https://supabase.com" target="_blank">supabase.com</a> and create a free project
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          Go to <strong>Project Settings → API</strong> and copy your <code>Project URL</code> and <code>anon public</code> key
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          Go to <strong>SQL Editor</strong> and run this to create the table:<br>
+          <code style="display:block;margin-top:6px;padding:8px;white-space:pre-wrap;">CREATE TABLE kanban_board (
+  id serial PRIMARY KEY,
+  board_key text UNIQUE NOT NULL,
+  cards jsonb NOT NULL DEFAULT '[]',
+  updated_at timestamptz DEFAULT now()
+);</code>
+        </div>
+      </div>
+    </div>
+    <div class="setup-form">
+      <label for="supabaseUrl">Project URL</label>
+      <input type="text" id="supabaseUrl" placeholder="https://xxxxx.supabase.co">
+      <label for="supabaseKey">Anon Public Key</label>
+      <input type="text" id="supabaseKey" placeholder="eyJhbGciOiJIUzI1NiIs...">
+      <p class="setup-error" id="setupError"></p>
+    </div>
+    <div class="setup-actions">
+      <button class="btn-skip" id="skipSetup">Skip — Use Local</button>
+      <button class="btn-connect" id="connectBtn">Connect</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="loader-ring"></div>
+  <p id="loadingText">Loading board...</p>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon"><i class="fas fa-layer-group"></i></div>
+    <h1>Kan<span>ban</span></h1>
+  </div>
+  <div class="header-center">
+    <div class="search-box">
+      <i class="fas fa-search"></i>
+      <input type="text" id="searchInput" placeholder="Search cards..." aria-label="Search cards">
+    </div>
+    <button class="filter-btn" id="filterHigh" aria-label="Filter high priority">
+      <i class="fas fa-fire"></i> High
+    </button>
+  </div>
+  <div class="header-right">
+    <div class="sync-indicator" id="syncIndicator">
+      <div class="dot"></div>
+      <span class="label-text">...</span>
+    </div>
+    <button class="btn-icon" id="shareBtn" title="Copy board link" aria-label="Share board">
+      <i class="fas fa-link"></i> <span>Share</span>
+    </button>
+    <button class="btn-icon" id="settingsBtn" title="Database settings" aria-label="Settings">
+      <i class="fas fa-database"></i>
+    </button>
+    <button class="btn-add-global" id="addCardBtn" aria-label="Add new card">
+      <i class="fas fa-plus"></i> New Card
+    </button>
+  </div>
+</header>
+
+<main class="board" id="board"></main>
+
+<div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">New Card</h2>
+      <button class="modal-close" id="modalClose" aria-label="Close modal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="cardTitle">Title</label>
+        <input type="text" id="cardTitle" placeholder="What needs to be done?" maxlength="120">
+      </div>
+      <div class="form-group">
+        <label for="cardDesc">Description</label>
+        <textarea id="cardDesc" placeholder="Add more details..." maxlength="500"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="cardPriority">Priority</label>
+          <select id="cardPriority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="cardColumn">Column</label>
+          <select id="cardColumn"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Tags (press Enter to add)</label>
+        <div class="tags-input-wrap" id="tagsWrap">
+          <input type="text" class="tags-input" id="tagsInput" placeholder="Type a tag...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="modalCancelBtn">Cancel</button>
+      <button class="btn-submit" id="modalSubmitBtn">Create Card</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+  // ===== Constants =====
+  const BOARD_KEY_STORAGE = 'kanban_board_key';
+  const SUPABASE_CREDS = 'kanban_supabase_creds';
+  const LOCAL_CARDS = 'kanban_local_cards';
+
+  const COLUMNS = [
+    { id: 'todo', title: 'To Do', color: 'var(--col-todo)' },
+    { id: 'progress', title: 'In Progress', color: 'var(--col-progress)' },
+    { id: 'review', title: 'Review', color: 'var(--col-review)' },
+    { id: 'done', title: 'Done', color: 'var(--col-done)' }
+  ];
+
+  const DEFAULT_CARDS = [
+    { id: 'c1', column: 'todo', title: 'Design system token audit', desc: 'Review all color, spacing, and typography tokens for consistency.', priority: 'high', tags: ['design', 'audit'], date: Date.now() - 86400000 },
+    { id: 'c2', column: 'todo', title: 'Set up CI/CD pipeline', desc: 'Configure GitHub Actions for automated testing and deployment.', priority: 'medium', tags: ['devops'], date: Date.now() - 172800000 },
+    { id: 'c3', column: 'todo', title: 'Write onboarding docs', desc: 'Create a getting-started guide for new team members.', priority: 'low', tags: ['docs'], date: Date.now() - 259200000 },
+    { id: 'c4', column: 'progress', title: 'Implement auth flow', desc: 'Build login, signup, and password reset pages.', priority: 'high', tags: ['frontend', 'auth'], date: Date.now() - 43200000 },
+    { id: 'c5', column: 'progress', title: 'Database schema migration', desc: 'Migrate tables to the new normalized schema.', priority: 'medium', tags: ['backend'], date: Date.now() - 100000000 },
+    { id: 'c6', column: 'review', title: 'Landing page redesign', desc: 'Updated hero section, testimonials, and pricing table.', priority: 'medium', tags: ['design', 'frontend'], date: Date.now() - 200000000 },
+    { id: 'c7', column: 'review', title: 'API rate limiting', desc: 'Added token bucket rate limiter to all public endpoints.', priority: 'high', tags: ['backend', 'security'], date: Date.now() - 300000000 },
+    { id: 'c8', column: 'done', title: 'Project scaffolding', desc: 'Initial setup with Vite, TypeScript, ESLint, and Prettier.', priority: 'low', tags: ['setup'], date: Date.now() - 500000000 },
+    { id: 'c9', column: 'done', title: 'Deploy staging environment', desc: 'Staging server is live with auto-deploy from develop branch.', priority: 'medium', tags: ['devops'], date: Date.now() - 600000000 },
+  ];
+
+  // ===== State =====
+  let cards = [];
+  let supabaseUrl = null;
+  let supabaseKey = null;
+  let boardKey = null;
+  let isCloudMode = false;
+  let editingCardId = null;
+  let currentTags = [];
+  let filterHighOnly = false;
+  let draggedCardId = null;
+  let saveTimeout = null;
+
+  // ===== DOM =====
+  const setupOverlay = document.getElementById('setupOverlay');
+  const setupError = document.getElementById('setupError');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const loadingText = document.getElementById('loadingText');
+  const boardEl = document.getElementById('board');
+  const modalOverlay = document.getElementById('modalOverlay');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalClose = document.getElementById('modalClose');
+  const modalCancelBtn = document.getElementById('modalCancelBtn');
+  const modalSubmitBtn = document.getElementById('modalSubmitBtn');
+  const cardTitleInput = document.getElementById('cardTitle');
+  const cardDescInput = document.getElementById('cardDesc');
+  const cardPrioritySelect = document.getElementById('cardPriority');
+  const cardColumnSelect = document.getElementById('cardColumn');
+  const tagsWrap = document.getElementById('tagsWrap');
+  const tagsInput = document.getElementById('tagsInput');
+  const searchInput = document.getElementById('searchInput');
+  const filterHighBtn = document.getElementById('filterHigh');
+  const addCardBtn = document.getElementById('addCardBtn');
+  const shareBtn = document.getElementById('shareBtn');
+  const settingsBtn = document.getElementById('settingsBtn');
+  const syncIndicator = document.getElementById('syncIndicator');
+  const toastContainer = document.getElementById('toastContainer');
+
+  // ===== Helpers =====
+  function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function formatDate(ts) {
+    if (!ts) return '';
+    const diff = Date.now() - ts;
+    const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000), d = Math.floor(diff / 86400000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
+    if (h < 24) return h + 'h ago';
+    if (d < 7) return d + 'd ago';
+    return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function setSyncState(state, text) {
+    syncIndicator.className = 'sync-indicator ' + state;
+    const label = syncIndicator.querySelector('.label-text');
+    if (label) label.textContent = text || state;
+  }
+
+  function generateBoardKey() {
+    return 'bk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function saveLocal() {
+    try { localStorage.setItem(LOCAL_CARDS, JSON.stringify(cards)); } catch {}
+  }
+
+  function loadLocal() {
+    try {
+      const c = localStorage.getItem(LOCAL_CARDS);
+      return c ? JSON.parse(c) : null;
+    } catch { return null; }
+  }
+
+  // ===== Supabase API (direct fetch, no SDK needed) =====
+  function sbHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      'apikey': supabaseKey,
+      'Authorization': 'Bearer ' + supabaseKey,
+      'Prefer': 'return=representation'
+    };
+  }
+
+  async function sbLoad(key) {
+    const r = await fetch(supabaseUrl + '/rest/v1/kanban_board?board_key=eq.' + encodeURIComponent(key) + '&select=*', {
+      headers: sbHeaders()
+    });
+    if (!r.ok) throw new Error('Load failed: ' + r.status);
+    const data = await r.json();
+    if (!data.length) throw new Error('Board not found');
+    return data[0];
+  }
+
+  async function sbUpsert(key, cardsData) {
+    const r = await fetch(supabaseUrl + '/rest/v1/kanban_board', {
+      method: 'POST',
+      headers: { ...sbHeaders(), 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({ board_key: key, cards: cardsData, updated_at: new Date().toISOString() })
+    });
+    if (!r.ok) throw new Error('Save failed: ' + r.status);
+    return await r.json();
+  }
+
+  async function sbTestConnection() {
+    // Try to fetch from the table — if it returns 200 or even 406 it means the table exists
+    const r = await fetch(supabaseUrl + '/rest/v1/kanban_board?select=id&limit=1', {
+      headers: sbHeaders()
+    });
+    if (r.status === 200 || r.status === 206) return true;
+    // 404 or 400 could mean table doesn't exist
+    if (r.status === 404) throw new Error('Table "kanban_board" not found. Did you run the SQL?');
+    if (r.status === 400) throw new Error('Bad request — check your URL and key.');
+    if (r.status === 401) throw new Error('Invalid API key.');
+    throw new Error('Unexpected error: ' + r.status);
+  }
+
+  // ===== Cloud Save =====
+  function scheduleCloudSave() {
+    saveLocal();
+    if (!isCloudMode) return;
+    setSyncState('syncing', 'saving...');
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(async () => {
+      try {
+        await sbUpsert(boardKey, cards);
+        setSyncState('synced', 'supabase');
+      } catch (err) {
+        console.error('Cloud save error:', err);
+        setSyncState('error', 'save failed');
+        setTimeout(() => scheduleCloudSave(), 8000);
+      }
+    }, 400);
+  }
+
+  // ===== Setup =====
+  function showSetup() { setupOverlay.classList.remove('hidden'); }
+
+  async function tryConnect() {
+    const url = document.getElementById('supabaseUrl').value.trim().replace(/\/+$/, '');
+    const key = document.getElementById('supabaseKey').value.trim();
+
+    if (!url || !key) {
+      setupError.textContent = 'Both fields are required.';
+      setupError.style.display = 'block';
+      return;
+    }
+    if (!url.includes('supabase.co')) {
+      setupError.textContent = 'URL should look like https://xxxxx.supabase.co';
+      setupError.style.display = 'block';
+      return;
+    }
+
+    const btn = document.getElementById('connectBtn');
+    btn.disabled = true;
+    btn.textContent = 'Connecting...';
+    setupError.style.display = 'none';
+
+    supabaseUrl = url;
+    supabaseKey = key;
+
+    try {
+      await sbTestConnection();
+      // Save credentials
+      localStorage.setItem(SUPABASE_CREDS, JSON.stringify({ url, key }));
+      setupOverlay.classList.add('hidden');
+      await initBoard();
+    } catch (err) {
+      setupError.textContent = err.message;
+      setupError.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Connect';
+    }
+  }
+
+  document.getElementById('connectBtn').addEventListener('click', tryConnect);
+  document.getElementById('skipSetup').addEventListener('click', () => {
+    setupOverlay.classList.add('hidden');
+    isCloudMode = false;
+    cards = loadLocal() || [...DEFAULT_CARDS];
+    saveLocal();
+    setSyncState('local-only', 'local only');
+    renderBoard();
+    showToast('Using local storage — no cloud sync', 'info');
+  });
+
+  // Enter key in setup fields
+  document.getElementById('supabaseUrl').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('supabaseKey').focus(); });
+  document.getElementById('supabaseKey').addEventListener('keydown', e => { if (e.key === 'Enter') tryConnect(); });
+
+  // Settings button — show setup again
+  settingsBtn.addEventListener('click', () => {
+    if (supabaseUrl) document.getElementById('supabaseUrl').value = supabaseUrl;
+    if (supabaseKey) document.getElementById('supabaseKey').value = supabaseKey;
+    showSetup();
+  });
+
+  // ===== Init Board =====
+  async function initBoard() {
+    // Check URL hash for shared board key
+    const hash = window.location.hash.slice(1);
+    let loadedFromCloud = false;
+
+    if (hash) {
+      // Loading a shared board
+      boardKey = hash;
+      loadingOverlay.classList.remove('hidden');
+      loadingText.textContent = 'Loading shared board...';
+      try {
+        const row = await sbLoad(boardKey);
+        cards = row.cards || [];
+        loadedFromCloud = true;
+        localStorage.setItem(BOARD_KEY_STORAGE, boardKey);
+      } catch (err) {
+        console.error('Failed to load shared board:', err);
+        showToast('Could not load shared board', 'error');
+        cards = loadLocal() || [...DEFAULT_CARDS];
+      }
+      loadingOverlay.classList.add('hidden');
+    } else {
+      // Check for existing board key
+      const savedKey = localStorage.getItem(BOARD_KEY_STORAGE);
+      if (savedKey && isCloudMode) {
+        boardKey = savedKey;
+        loadingOverlay.classList.remove('hidden');
+        loadingText.textContent = 'Loading your board...';
+        try {
+          const row = await sbLoad(boardKey);
+          cards = row.cards || [];
+          loadedFromCloud = true;
+        } catch (err) {
+          console.error('Failed to load saved board:', err);
+          // Create a new board
+          boardKey = generateBoardKey();
+          cards = loadLocal() || [...DEFAULT_CARDS];
+          try {
+            await sbUpsert(boardKey, cards);
+            localStorage.setItem(BOARD_KEY_STORAGE, boardKey);
+            loadedFromCloud = true;
+          } catch (e2) {
+            console.error('Failed to create new board:', e2);
+          }
+        }
+        loadingOverlay.classList.add('hidden');
+      } else if (isCloudMode) {
+        // New cloud board
+        boardKey = generateBoardKey();
+        cards = loadLocal() || [...DEFAULT_CARDS];
+        loadingOverlay.classList.remove('hidden');
+        loadingText.textContent = 'Creating board...';
+        try {
+          await sbUpsert(boardKey, cards);
+          localStorage.setItem(BOARD_KEY_STORAGE, boardKey);
+          loadedFromCloud = true;
+        } catch (err) {
+          console.error('Failed to create board:', err);
+          showToast('Cloud save failed, using local', 'error');
+          isCloudMode = false;
+        }
+        loadingOverlay.classList.add('hidden');
+      }
+    }
+
+    if (isCloudMode && loadedFromCloud) {
+      setSyncState('synced', 'supabase');
+      // Update URL hash
+      history.replaceState(null, '', '#' + boardKey);
+    } else if (!isCloudMode) {
+      setSyncState('local-only', 'local only');
+    }
+
+    saveLocal();
+    renderBoard();
+    if (isCloudMode) showToast('Connected to Supabase', 'success');
+  }
+
+  // ===== Share =====
+  shareBtn.addEventListener('click', async () => {
+    if (!isCloudMode || !boardKey) {
+      showToast('Connect to Supabase first to share', 'error');
+      return;
+    }
+    const url = window.location.origin + window.location.pathname + '#' + boardKey;
+    try { await navigator.clipboard.writeText(url); }
+    catch {
+      const tmp = document.createElement('input');
+      tmp.value = url; document.body.appendChild(tmp);
+      tmp.select(); document.execCommand('copy');
+      document.body.removeChild(tmp);
+    }
+    showToast('Board link copied', 'success');
+  });
+
+  // ===== Toast =====
+  function showToast(msg, type = 'info') {
+    const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.innerHTML = `<i class="fas ${icons[type]}"></i><span>${msg}</span>`;
+    toastContainer.appendChild(t);
+    setTimeout(() => { t.classList.add('removing'); t.addEventListener('animationend', () => t.remove()); }, 2800);
+  }
+
+  // ===== Render =====
+  function renderBoard() {
+    boardEl.innerHTML = '';
+    const q = searchInput.value.trim().toLowerCase();
+    COLUMNS.forEach(col => {
+      const cc = cards.filter(c => {
+        if (c.column !== col.id) return false;
+        if (filterHighOnly && c.priority !== 'high') return false;
+        if (q) {
+          return c.title.toLowerCase().includes(q) ||
+            (c.desc || '').toLowerCase().includes(q) ||
+            (c.tags || []).some(t => t.toLowerCase().includes(q));
+        }
+        return true;
+      });
+      const el = document.createElement('section');
+      el.className = 'column'; el.dataset.column = col.id;
+      el.setAttribute('aria-label', col.title + ' column');
+      el.innerHTML = `
+        <div class="column-header">
+          <div class="column-header-left">
+            <div class="column-dot" style="background:${col.color};box-shadow:0 0 8px ${col.color}"></div>
+            <span class="column-title">${col.title}</span>
+            <span class="column-count">${cc.length}</span>
+          </div>
+        </div>
+        <div class="column-cards" data-column="${col.id}"></div>
+        <div class="column-footer">
+          <button class="btn-add-card" data-column="${col.id}"><i class="fas fa-plus"></i> Add card</button>
+        </div>`;
+      const container = el.querySelector('.column-cards');
+      if (!cc.length) {
+        container.innerHTML = '<div class="column-empty"><i class="fas fa-inbox"></i>No cards here</div>';
+      } else {
+        cc.forEach(card => container.appendChild(makeCard(card)));
+      }
+      el.addEventListener('dragover', onDragOver);
+      el.addEventListener('dragenter', onDragEnter);
+      el.addEventListener('dragleave', onDragLeave);
+      el.addEventListener('drop', onDrop);
+      boardEl.appendChild(el);
+    });
+  }
+
+  function makeCard(card) {
+    const el = document.createElement('article');
+    el.className = 'card'; el.draggable = true; el.dataset.id = card.id;
+    const pl = { high: 'High', medium: 'Medium', low: 'Low' };
+    const tags = (card.tags || []).map(t => `<span class="card-tag">${esc(t)}</span>`).join('');
+    el.innerHTML = `
+      <div class="card-top">
+        <span class="card-priority priority-${card.priority}">${pl[card.priority]}</span>
+        <div class="card-actions">
+          <button class="card-action-btn edit" aria-label="Edit"><i class="fas fa-pen"></i></button>
+          <button class="card-action-btn delete" aria-label="Delete"><i class="fas fa-trash-alt"></i></button>
+        </div>
+      </div>
+      <div class="card-title">${esc(card.title)}</div>
+      ${card.desc ? `<div class="card-desc">${esc(card.desc)}</div>` : ''}
+      <div class="card-bottom"><div class="card-tags">${tags}</div><span class="card-date">${formatDate(card.date)}</span></div>`;
+    el.addEventListener('dragstart', onDragStart);
+    el.addEventListener('dragend', onDragEnd);
+    el.querySelector('.edit').addEventListener('click', e => { e.stopPropagation(); openEdit(card.id); });
+    el.querySelector('.delete').addEventListener('click', e => { e.stopPropagation(); deleteCard(card.id); });
+    return el;
+  }
+
+  // ===== Drag & Drop =====
+  function onDragStart(e) { draggedCardId = e.currentTarget.dataset.id; e.currentTarget.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', draggedCardId); }
+  function onDragEnd(e) { e.currentTarget.classList.remove('dragging'); draggedCardId = null; document.querySelectorAll('.column').forEach(c => c.classList.remove('drag-over')); document.querySelectorAll('.drop-placeholder').forEach(p => p.remove()); }
+  function onDragOver(e) {
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    const col = e.currentTarget.closest('.column'), cc = col.querySelector('.column-cards');
+    let ph = cc.querySelector('.drop-placeholder');
+    if (!ph) { ph = document.createElement('div'); ph.className = 'drop-placeholder'; }
+    const after = getAfter(cc, e.clientY);
+    if (after) cc.insertBefore(ph, after); else cc.appendChild(ph);
+  }
+  function onDragEnter(e) { e.preventDefault(); const c = e.currentTarget.closest('.column'); if (c) c.classList.add('drag-over'); }
+  function onDragLeave(e) { const c = e.currentTarget.closest('.column'); if (c && !c.contains(e.relatedTarget)) c.classList.remove('drag-over'); }
+  function onDrop(e) {
+    e.preventDefault();
+    const col = e.currentTarget.closest('.column'); col.classList.remove('drag-over');
+    const cid = e.dataTransfer.getData('text/plain'), nc = col.dataset.column;
+    const cc = col.querySelector('.column-cards'), ph = cc.querySelector('.drop-placeholder');
+    let afterId = null;
+    if (ph && ph.nextElementSibling) afterId = ph.nextElementSibling.dataset.id;
+    if (ph) ph.remove();
+    const card = cards.find(c => c.id === cid); if (!card) return;
+    const oc = card.column; card.column = nc;
+    cards.splice(cards.indexOf(card), 1);
+    if (afterId) { const i = cards.findIndex(c => c.id === afterId); cards.splice(i, 0, card); }
+    else { let ii = cards.length; for (let i = cards.length - 1; i >= 0; i--) { if (cards[i].column === nc) { ii = i + 1; break; } } cards.splice(ii, 0, card); }
+    scheduleCloudSave(); renderBoard();
+    if (oc !== nc) showToast('Moved to ' + (COLUMNS.find(c => c.id === nc)?.title || nc), 'success');
+  }
+  function getAfter(container, y) {
+    return [...container.querySelectorAll('.card:not(.dragging)')].reduce((cl, ch) => {
+      const b = ch.getBoundingClientRect(), o = y - b.top - b.height / 2;
+      return o < 0 && o > cl.offset ? { offset: o, element: ch } : cl;
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
+
+  // ===== Modal =====
+  function populateColumns() { cardColumnSelect.innerHTML = COLUMNS.map(c => `<option value="${c.id}">${c.title}</option>`).join(''); }
+  function openAdd(colId) {
+    editingCardId = null; modalTitle.textContent = 'New Card'; modalSubmitBtn.textContent = 'Create Card';
+    cardTitleInput.value = ''; cardDescInput.value = ''; cardPrioritySelect.value = 'medium';
+    if (colId) cardColumnSelect.value = colId;
+    currentTags = []; renderChips(); showModal();
+    setTimeout(() => cardTitleInput.focus(), 200);
+  }
+  function openEdit(id) {
+    const c = cards.find(x => x.id === id); if (!c) return;
+    editingCardId = id; modalTitle.textContent = 'Edit Card'; modalSubmitBtn.textContent = 'Save Changes';
+    cardTitleInput.value = c.title; cardDescInput.value = c.desc || '';
+    cardPrioritySelect.value = c.priority; cardColumnSelect.value = c.column;
+    currentTags = [...(c.tags || [])]; renderChips(); showModal();
+    setTimeout(() => cardTitleInput.focus(), 200);
+  }
+  function showModal() { modalOverlay.classList.add('active'); document.body.style.overflow = 'hidden'; }
+  function hideModal() { modalOverlay.classList.remove('active'); document.body.style.overflow = ''; editingCardId = null; }
+  function renderChips() {
+    tagsWrap.querySelectorAll('.tag-chip').forEach(c => c.remove());
+    currentTags.forEach((tag, i) => {
+      const chip = document.createElement('span'); chip.className = 'tag-chip';
+      chip.innerHTML = `${esc(tag)}<button type="button">&times;</button>`;
+      chip.querySelector('button').addEventListener('click', () => { currentTags.splice(i, 1); renderChips(); });
+      tagsWrap.insertBefore(chip, tagsInput);
+    });
+  }
+  tagsInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); const v = tagsInput.value.trim().toLowerCase().replace(/[^a-z0-9\-_]/g, ''); if (v && !currentTags.includes(v) && currentTags.length < 5) { currentTags.push(v); renderChips(); } tagsInput.value = ''; }
+    if (e.key === 'Backspace' && !tagsInput.value && currentTags.length) { currentTags.pop(); renderChips(); }
+  });
+
+  function submitCard() {
+    const title = cardTitleInput.value.trim();
+    if (!title) {
+      cardTitleInput.style.borderColor = 'var(--danger)'; cardTitleInput.style.boxShadow = '0 0 0 3px var(--danger-glow)'; cardTitleInput.focus();
+      setTimeout(() => { cardTitleInput.style.borderColor = ''; cardTitleInput.style.boxShadow = ''; }, 1500);
+      return;
+    }
+    if (editingCardId) {
+      const c = cards.find(x => x.id === editingCardId);
+      if (c) { c.title = title; c.desc = cardDescInput.value.trim(); c.priority = cardPrioritySelect.value; c.column = cardColumnSelect.value; c.tags = [...currentTags]; }
+      showToast('Card updated', 'success');
+    } else {
+      cards.push({ id: 'c' + Date.now() + Math.random().toString(36).slice(2, 6), column: cardColumnSelect.value, title, desc: cardDescInput.value.trim(), priority: cardPrioritySelect.value, tags: [...currentTags], date: Date.now() });
+      showToast('Card created', 'success');
+    }
+    scheduleCloudSave(); renderBoard(); hideModal();
+  }
+
+  function deleteCard(id) {
+    const i = cards.findIndex(c => c.id === id); if (i === -1) return;
+    cards.splice(i, 1); scheduleCloudSave(); renderBoard(); showToast('Card deleted', 'error');
+  }
+
+  // ===== Events =====
+  addCardBtn.addEventListener('click', () => openAdd(null));
+  modalClose.addEventListener('click', hideModal);
+  modalCancelBtn.addEventListener('click', hideModal);
+  modalSubmitBtn.addEventListener('click', submitCard);
+  modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) hideModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && modalOverlay.classList.contains('active')) hideModal();
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && modalOverlay.classList.contains('active')) submitCard();
+  });
+  boardEl.addEventListener('click', e => { const b = e.target.closest('.btn-add-card'); if (b) openAdd(b.dataset.column); });
+  searchInput.addEventListener('input', () => renderBoard());
+  filterHighBtn.addEventListener('click', () => { filterHighOnly = !filterHighOnly; filterHighBtn.classList.toggle('active', filterHighOnly); renderBoard(); });
+
+  // ===== Boot =====
+  populateColumns();
+
+  // Auto-connect to Supabase
+  (function boot() {
+    // Your Supabase credentials
+    const AUTO_URL = 'https://ysfsqneejtlwfgxinswy.supabase.co';
+    const AUTO_KEY = 'sb_publishable_ASJ3kKG1B7ZKzjHogjBFqQ_DP2Mv_gx';
+
+    // Try saved credentials first, then fall back to auto-config
+    try {
+      const creds = JSON.parse(localStorage.getItem(SUPABASE_CREDS));
+      if (creds && creds.url && creds.key) {
+        supabaseUrl = creds.url;
+        supabaseKey = creds.key;
+      }
+    } catch {}
+
+    // Use auto-config if no saved credentials
+    if (!supabaseUrl || !supabaseKey) {
+      supabaseUrl = AUTO_URL;
+      supabaseKey = AUTO_KEY;
+      localStorage.setItem(SUPABASE_CREDS, JSON.stringify({ url: AUTO_URL, key: AUTO_KEY }));
+    }
+
+    isCloudMode = true;
+    setupOverlay.classList.add('hidden');
+    initBoard();
+  })();
+</script>
+</body>
+</html>
