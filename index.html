@@ -659,7 +659,7 @@
   }
 
   async function sbUpsert(key, cardsData) {
-    const r = await fetch(supabaseUrl + '/rest/v1/kanban_board', {
+    const r = await fetch(supabaseUrl + '/rest/v1/kanban_board?on_conflict=board_key', {
       method: 'POST',
       headers: { ...sbHeaders(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify({ board_key: key, cards: cardsData, updated_at: new Date().toISOString() })
