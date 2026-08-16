@@ -6,6 +6,7 @@
 <title>Kanban Board</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --bg: #0f0f0f;
@@ -761,6 +762,8 @@
   });
 
   // ===== Init Board =====
+  let realtimeChannel = null;
+
   async function initBoard() {
     // Check URL hash for shared board key
     const hash = window.location.hash.slice(1);
@@ -781,7 +784,7 @@
         showToast('Could not load shared board', 'error');
         cards = loadLocal() || [...DEFAULT_CARDS];
       }
-      loadingOverlay.classList.add('hidden');
+      loadingOverlay.classList.remove('hidden');
     } else {
       // Check for existing board key
       const savedKey = localStorage.getItem(BOARD_KEY_STORAGE);
@@ -802,6 +805,7 @@
             await sbUpsert(boardKey, cards);
             localStorage.setItem(BOARD_KEY_STORAGE, boardKey);
             loadedFromCloud = true;
+            setupRealtime();
           } catch (e2) {
             console.error('Failed to create new board:', e2);
           }
@@ -817,6 +821,7 @@
           await sbUpsert(boardKey, cards);
           localStorage.setItem(BOARD_KEY_STORAGE, boardKey);
           loadedFromCloud = true;
+          setupRealtime();
         } catch (err) {
           console.error('Failed to create board:', err);
           showToast('Cloud save failed, using local', 'error');
@@ -827,6 +832,7 @@
     }
 
     if (isCloudMode && loadedFromCloud) {
+      setupRealtime();
       setSyncState('synced', 'supabase');
       // Update URL hash
       history.replaceState(null, '', '#' + boardKey);
@@ -837,6 +843,30 @@
     saveLocal();
     renderBoard();
     if (isCloudMode) showToast('Connected to Supabase', 'success');
+  }
+
+  // ===== Realtime Sync =====
+  function setupRealtime() {
+    if (typeof supabase === 'undefined' || !supabaseUrl || !supabaseKey || !boardKey) return;
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+    if (realtimeChannel) realtimeChannel.unsubscribe();
+    realtimeChannel = supabaseClient
+      .channel('board-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'kanban_board', filter: `board_key=eq.${boardKey}` },
+        (payload) => {
+          if (draggedCardId || editingCardId) return;
+          if (payload.new && payload.new.cards) {
+            cards = payload.new.cards;
+            renderBoard();
+            setSyncState('synced', 'supabase (live)');
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') setSyncState('synced', 'supabase (live)');
+      });
   }
 
   // ===== Share =====
