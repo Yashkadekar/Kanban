@@ -826,7 +826,7 @@
         showToast('Could not load shared board', 'error');
         cards = loadLocal() || [...DEFAULT_CARDS];
       }
-      loadingOverlay.classList.remove('hidden');
+      loadingOverlay.classList.add('hidden');
     } else {
       // Check for existing board key
       const savedKey = localStorage.getItem(BOARD_KEY_STORAGE);
