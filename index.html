@@ -660,7 +660,7 @@
   async function sbUpsert(key, cardsData) {
     const r = await fetch(supabaseUrl + '/rest/v1/kanban_board', {
       method: 'POST',
-      headers: { ...sbHeaders(), 'Prefer': 'resolution=merge-duplicates' },
+      headers: { ...sbHeaders(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify({ board_key: key, cards: cardsData, updated_at: new Date().toISOString() })
     });
     if (!r.ok) throw new Error('Save failed: ' + r.status);
