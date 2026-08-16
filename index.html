@@ -318,6 +318,7 @@
   .card-tags { display: flex; gap: 5px; flex-wrap: wrap; }
   .card-tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: rgba(255,255,255,0.06); color: var(--fg-muted); border: 1px solid var(--border); }
   .card-date { font-size: 10px; color: var(--fg-dim); font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+  .card-due-date { font-size: 10px; color: var(--danger); display: flex; align-items: center; gap: 4px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: var(--danger-glow); }
 
   /* Modal */
   .modal-overlay {
@@ -527,6 +528,10 @@
         </div>
       </div>
       <div class="form-group">
+        <label for="cardDueDate">Due Date (Optional)</label>
+        <input type="date" id="cardDueDate" style="background:var(--bg); border:1px solid var(--border); color:var(--fg); padding:10px; border-radius:var(--radius-sm); font-family:inherit; color-scheme:dark;">
+      </div>
+      <div class="form-group">
         <label>Tags (press Enter to add)</label>
         <div class="tags-input-wrap" id="tagsWrap">
           <input type="text" class="tags-input" id="tagsInput" placeholder="Type a tag...">
@@ -594,6 +599,7 @@
   const cardDescInput = document.getElementById('cardDesc');
   const cardPrioritySelect = document.getElementById('cardPriority');
   const cardColumnSelect = document.getElementById('cardColumn');
+  const cardDueDateInput = document.getElementById('cardDueDate');
   const tagsWrap = document.getElementById('tagsWrap');
   const tagsInput = document.getElementById('tagsInput');
   const searchInput = document.getElementById('searchInput');
@@ -945,6 +951,7 @@
     el.className = 'card'; el.draggable = true; el.dataset.id = card.id;
     const pl = { high: 'High', medium: 'Medium', low: 'Low' };
     const tags = (card.tags || []).map(t => `<span class="card-tag">${esc(t)}</span>`).join('');
+    const dueHtml = card.dueDate ? `<div class="card-due-date" title="Due ${card.dueDate}"><i class="fas fa-calendar-alt"></i>${card.dueDate}</div>` : '';
     el.innerHTML = `
       <div class="card-top">
         <span class="card-priority priority-${card.priority}">${pl[card.priority]}</span>
@@ -955,7 +962,7 @@
       </div>
       <div class="card-title">${esc(card.title)}</div>
       ${card.desc ? `<div class="card-desc">${esc(card.desc)}</div>` : ''}
-      <div class="card-bottom"><div class="card-tags">${tags}</div><span class="card-date">${formatDate(card.date)}</span></div>`;
+      <div class="card-bottom"><div class="card-tags">${tags}</div>${dueHtml || `<span class="card-date">${formatDate(card.date)}</span>`}</div>`;
     el.addEventListener('dragstart', onDragStart);
     el.addEventListener('dragend', onDragEnd);
     el.querySelector('.edit').addEventListener('click', e => { e.stopPropagation(); openEdit(card.id); });
@@ -1003,7 +1010,7 @@
   function populateColumns() { cardColumnSelect.innerHTML = COLUMNS.map(c => `<option value="${c.id}">${c.title}</option>`).join(''); }
   function openAdd(colId) {
     editingCardId = null; modalTitle.textContent = 'New Card'; modalSubmitBtn.textContent = 'Create Card';
-    cardTitleInput.value = ''; cardDescInput.value = ''; cardPrioritySelect.value = 'medium';
+    cardTitleInput.value = ''; cardDescInput.value = ''; cardPrioritySelect.value = 'medium'; cardDueDateInput.value = '';
     if (colId) cardColumnSelect.value = colId;
     currentTags = []; renderChips(); showModal();
     setTimeout(() => cardTitleInput.focus(), 200);
@@ -1012,7 +1019,7 @@
     const c = cards.find(x => x.id === id); if (!c) return;
     editingCardId = id; modalTitle.textContent = 'Edit Card'; modalSubmitBtn.textContent = 'Save Changes';
     cardTitleInput.value = c.title; cardDescInput.value = c.desc || '';
-    cardPrioritySelect.value = c.priority; cardColumnSelect.value = c.column;
+    cardPrioritySelect.value = c.priority; cardColumnSelect.value = c.column; cardDueDateInput.value = c.dueDate || '';
     currentTags = [...(c.tags || [])]; renderChips(); showModal();
     setTimeout(() => cardTitleInput.focus(), 200);
   }
@@ -1041,10 +1048,10 @@
     }
     if (editingCardId) {
       const c = cards.find(x => x.id === editingCardId);
-      if (c) { c.title = title; c.desc = cardDescInput.value.trim(); c.priority = cardPrioritySelect.value; c.column = cardColumnSelect.value; c.tags = [...currentTags]; }
+      if (c) { c.title = title; c.desc = cardDescInput.value.trim(); c.priority = cardPrioritySelect.value; c.column = cardColumnSelect.value; c.dueDate = cardDueDateInput.value; c.tags = [...currentTags]; }
       showToast('Card updated', 'success');
     } else {
-      cards.push({ id: 'c' + Date.now() + Math.random().toString(36).slice(2, 6), column: cardColumnSelect.value, title, desc: cardDescInput.value.trim(), priority: cardPrioritySelect.value, tags: [...currentTags], date: Date.now() });
+      cards.push({ id: 'c' + Date.now() + Math.random().toString(36).slice(2, 6), column: cardColumnSelect.value, title, desc: cardDescInput.value.trim(), priority: cardPrioritySelect.value, dueDate: cardDueDateInput.value, tags: [...currentTags], date: Date.now() });
       showToast('Card created', 'success');
     }
     scheduleCloudSave(); renderBoard(); hideModal();
